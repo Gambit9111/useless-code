@@ -1,0 +1,47 @@
+import pandas as pd
+from backtesting import Backtest, Strategy
+from backtesting.lib import crossover, cross
+from io import StringIO
+
+# Sample data to simulate OHLC data
+csv_data = """
+Date,Open,High,Low,Close,Volume
+2022-01-01,100,105,95,100,100000
+2022-01-02,102,108,98,105,110000
+2022-01-03,105,109,99,103,120000
+2022-01-04,104,115,100,115,130000
+"""
+
+test_data = pd.read_csv(StringIO(csv_data), parse_dates=True, index_col='Date')
+
+class AdvancedBreakoutStrategy(Strategy):
+    n1 = 20  # Period for fast EMA
+    n2 = 50  # Period for slow EMA
+    rsi_period = 14
+
+    def init(self):
+        close = self.data['Close']
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        avg_gain = gain.rolling(window=self.rsi_period).mean()
+        avg_loss = loss.rolling(window=self.rsi_period).mean()
+        rs = avg_gain / avg_loss
+        self.rsi = 100 - (100 / (1 + rs))
+
+    def next(self):
+        close = self.data['Close']
+        if len(self.data) > self.n2: 
+            ema_fast = close.ewm(span=self.n1, min_periods=self.n1).mean()
+            ema_slow = close.ewm(span=self.n2, min_periods=self.n2).mean()
+
+            if crossover(ema_fast, ema_slow) and self.rsi < 70:
+                self.buy()
+            elif self.position and (cross(ema_slow, ema_fast) or self.rsi > 30):
+                self.sell()
+
+# Running backtest
+bt = Backtest(test_data, AdvancedBreakoutStrategy, cash=10000, commission=.002)
+stats = bt.run()
+bt.plot(filename='backtest_result.html')  # Save the plot to a file
+print(stats)

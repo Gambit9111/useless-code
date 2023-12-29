@@ -1,0 +1,4 @@
+------
+Please Use alternative methods to fix this error, you are free to change the code as needed to eliminate the errors.
+You are allow to do major changes on the code to eliminate the error.
+Please provide COMPLETE python script ready to be ran.
